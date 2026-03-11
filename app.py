@@ -1,8 +1,7 @@
 import streamlit as st
-import os
 import io
 import zipfile
-from typing import Dict, List
+from typing import Dict
 import base64
 
 st.set_page_config(
@@ -12,41 +11,6 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-FRAMEWORKS = {
-    "nodejs": "Node.js - Servidor Express",
-    "nextjs": "Next.js 14 - Framework React",
-    "python": "Python - FastAPI",
-    "go": "Go - Servidor HTTP",
-    "typescript": "TypeScript - Node.js",
-    "rust": "Rust - Binario Ejecutable",
-    "dotnet": ".NET 8 - ASP.NET Core",
-    "scala": "Scala - Akka HTTP",
-    "solidity": "Solidity - Smart Contract",
-    "docker": "Docker - Contenedores",
-    "kubernetes": "Kubernetes - K8s Manifiestos",
-    "ansible": "Ansible - Automatización",
-    "aws": "AWS - CDK (TypeScript)",
-    "azure": "Azure - Bicep IaC",
-    "gcp": "GCP - Terraform",
-    "terraform": "Terraform - AWS IaC",
-    "react": "React - SPA",
-    "vue": "Vue.js 3 - Framework",
-    "svelte": "Svelte - Framework",
-    "flutter": "Flutter - Móvil",
-    "react_native": "React Native - Móvil",
-    "postgres": "PostgreSQL - Base de Datos",
-}
-
-CATEGORIES = {
-    "Backend Web": ["nodejs", "python", "go", "rust", "dotnet", "scala"],
-    "Frontend Web": ["nextjs", "react", "vue", "svelte"],
-    "Móvil": ["flutter", "react_native"],
-    "Blockchain": ["solidity", "rust"],
-    "DevOps": ["docker", "kubernetes", "ansible", "terraform"],
-    "Cloud": ["aws", "azure", "gcp"],
-    "Base de Datos": ["postgres"],
-}
-
 if "generated_files" not in st.session_state:
     st.session_state.generated_files = None
 if "project_name" not in st.session_state:
@@ -55,60 +19,18 @@ if "selected_framework" not in st.session_state:
     st.session_state.selected_framework = ""
 
 
+def load_frameworks():
+    from src.templates.registry import get_frameworks_by_category, get_categories
+
+    return get_frameworks_by_category(), get_categories()
+
+
 def generate_boilerplate_files(
     framework: str, project_name: str, options: Dict = None
 ) -> Dict[str, str]:
-    from src.templates.frameworks import (
-        generate_nodejs_template,
-        generate_nextjs_template,
-        generate_python_template,
-        generate_go_template,
-        generate_typescript_template,
-        generate_rust_template,
-        generate_dotnet_template,
-        generate_docker_template,
-        generate_kubernetes_template,
-        generate_ansible_template,
-        generate_aws_template,
-        generate_azure_template,
-        generate_gcp_template,
-        generate_terraform_template,
-        generate_solidity_template,
-        generate_react_template,
-        generate_vue_template,
-        generate_svelte_template,
-        generate_flutter_template,
-        generate_react_native_template,
-        generate_postgres_template,
-        generate_scala_template,
-    )
+    from src.templates.registry import get_generator
 
-    generators = {
-        "nodejs": generate_nodejs_template,
-        "nextjs": generate_nextjs_template,
-        "python": generate_python_template,
-        "go": generate_go_template,
-        "typescript": generate_typescript_template,
-        "rust": generate_rust_template,
-        "dotnet": generate_dotnet_template,
-        "scala": generate_scala_template,
-        "solidity": generate_solidity_template,
-        "docker": generate_docker_template,
-        "kubernetes": generate_kubernetes_template,
-        "ansible": generate_ansible_template,
-        "aws": generate_aws_template,
-        "azure": generate_azure_template,
-        "gcp": generate_gcp_template,
-        "terraform": generate_terraform_template,
-        "react": generate_react_template,
-        "vue": generate_vue_template,
-        "svelte": generate_svelte_template,
-        "flutter": generate_flutter_template,
-        "react_native": generate_react_native_template,
-        "postgres": generate_postgres_template,
-    }
-
-    generator = generators.get(framework)
+    generator = get_generator(framework)
     if generator:
         return generator(project_name, options)
     return {}
@@ -127,6 +49,8 @@ def main():
     st.title("🚀 Agente 11 - Generador de Boilerplate")
     st.markdown("Genera código boilerplate para tus nuevos proyectos automáticamente")
 
+    frameworks_by_category, categories = load_frameworks()
+
     tab1, tab2, tab3, tab4 = st.tabs(
         ["📦 Generador", "👁️ Vista Previa", "💾 Descargar", "⚙️ Configuración"]
     )
@@ -140,47 +64,83 @@ def main():
             st.subheader("Seleccionar Framework")
 
             category = st.selectbox(
-                "Categoría", options=list(CATEGORIES.keys()), index=0
+                "Categoría", options=categories, index=0, key="category_select"
             )
 
-            frameworks_in_category = CATEGORIES[category]
-            selected_framework = st.selectbox(
-                "Framework",
-                options=frameworks_in_category,
-                format_func=lambda x: FRAMEWORKS.get(x, x),
-            )
+            frameworks_in_category = frameworks_by_category.get(category, {})
+
+            if frameworks_in_category:
+                framework_options = list(frameworks_in_category.keys())
+                framework_display = {
+                    k: v["name"] for k, v in frameworks_in_category.items()
+                }
+
+                selected_framework = st.selectbox(
+                    "Framework",
+                    options=framework_options,
+                    format_func=lambda x: framework_display.get(x, x),
+                    key="framework_select",
+                )
+
+                if selected_framework:
+                    fw_info = frameworks_in_category[selected_framework]
+                    st.caption(fw_info.get("description", ""))
+            else:
+                selected_framework = None
+                st.warning("No hay frameworks disponibles en esta categoría")
 
             project_name = st.text_input(
                 "Nombre del Proyecto",
                 value="mi-proyecto",
                 help="Nombre de tu proyecto (se usará para package.json, directorios, etc.)",
+                key="project_name_input",
             )
 
         with col2:
             st.subheader("Opciones")
 
-            include_tests = st.checkbox("Incluir Tests", value=True)
-            include_ci = st.checkbox("Incluir CI/CD", value=True)
-            include_docker = st.checkbox("Configuración Docker", value=False)
-
-            st.info(
-                f"**Framework:** {FRAMEWORKS.get(selected_framework, selected_framework)}"
+            include_tests = st.checkbox("Incluir Tests", value=True, key="opt_tests")
+            include_ci = st.checkbox("Incluir CI/CD", value=True, key="opt_ci")
+            include_docker = st.checkbox(
+                "Configuración Docker", value=False, key="opt_docker"
             )
+
+            if selected_framework:
+                framework_display = {
+                    k: v["name"] for k, v in frameworks_in_category.items()
+                }
+                st.info(
+                    f"**Framework:** {framework_display.get(selected_framework, selected_framework)}"
+                )
 
             generate_btn = st.button(
-                "🚀 Generar Boilerplate", type="primary", use_container_width=True
+                "🚀 Generar Boilerplate",
+                type="primary",
+                use_container_width=True,
+                key="generate_btn",
             )
 
-        if generate_btn and project_name:
+        if generate_btn and selected_framework and project_name:
             with st.spinner("Generando boilerplate..."):
                 try:
                     files = generate_boilerplate_files(selected_framework, project_name)
-                    st.session_state.generated_files = files
-                    st.session_state.project_name = project_name
-                    st.session_state.selected_framework = selected_framework
-                    st.success(
-                        f"✅ ¡Se generaron {len(files)} archivos para {project_name}!"
-                    )
+                    if files:
+                        st.session_state.generated_files = files
+                        st.session_state.project_name = project_name
+                        st.session_state.selected_framework = selected_framework
+                        st.success(
+                            f"✅ ¡Se generaron {len(files)} archivos para {project_name}!"
+                        )
+                    else:
+                        st.warning(
+                            "El generador no produjo archivos. Usando plantilla base."
+                        )
+                        files = {
+                            "README.md": f"# {project_name}\n\nProyecto generado con Agente 11"
+                        }
+                        st.session_state.generated_files = files
+                        st.session_state.project_name = project_name
+                        st.session_state.selected_framework = selected_framework
                 except Exception as e:
                     st.error(f"Error al generar boilerplate: {str(e)}")
 
@@ -195,30 +155,38 @@ def main():
             st.markdown(f"**Archivos:** {len(files)}")
 
             file_list = sorted(files.keys())
-            selected_file = st.selectbox("Seleccionar Archivo", options=file_list)
+            selected_file = st.selectbox(
+                "Seleccionar Archivo", options=file_list, key="file_select"
+            )
 
             if selected_file:
                 content = files[selected_file]
                 st.subheader(f"📄 {selected_file}")
                 lang = "text"
-                if selected_file.endswith((".js", ".ts", ".tsx", ".jsx")):
-                    lang = "javascript"
-                elif selected_file.endswith(".py"):
-                    lang = "python"
-                elif selected_file.endswith(".json"):
-                    lang = "json"
-                elif selected_file.endswith((".yml", ".yaml")):
-                    lang = "yaml"
-                elif selected_file.endswith(".html"):
-                    lang = "html"
-                elif selected_file.endswith(".css"):
-                    lang = "css"
-                elif selected_file.endswith((".go", ".rs")):
-                    lang = "go"
-                elif selected_file.endswith(".sql"):
-                    lang = "sql"
-                elif selected_file.endswith((".md", ".markdown")):
-                    lang = "markdown"
+                ext = selected_file.split(".")[-1] if "." in selected_file else ""
+                lang_map = {
+                    "js": "javascript",
+                    "jsx": "javascript",
+                    "ts": "typescript",
+                    "tsx": "typescript",
+                    "py": "python",
+                    "json": "json",
+                    "yml": "yaml",
+                    "yaml": "yaml",
+                    "html": "html",
+                    "css": "css",
+                    "go": "go",
+                    "rs": "rust",
+                    "sql": "sql",
+                    "md": "markdown",
+                    "sh": "bash",
+                    "toml": "toml",
+                    "xml": "xml",
+                    "swift": "swift",
+                    "kt": "kotlin",
+                    "java": "java",
+                }
+                lang = lang_map.get(ext, "text")
                 st.code(content, language=lang)
         else:
             st.info(
@@ -236,9 +204,7 @@ def main():
 
             with col1:
                 st.markdown(f"### 📦 {project_name}")
-                st.markdown(
-                    f"**Framework:** {FRAMEWORKS.get(st.session_state.selected_framework, st.session_state.selected_framework)}"
-                )
+                st.markdown(f"**Framework:** {st.session_state.selected_framework}")
                 st.markdown(f"**Total de Archivos:** {len(files)}")
 
                 st.markdown("#### 📁 Estructura de Archivos")
@@ -269,44 +235,58 @@ def main():
                 "google": "Google AI (Gemini)",
                 "ollama": "Ollama (Local)",
             }.get(x, x),
+            key="provider_select",
         )
 
         if provider == "openai":
             api_key = st.text_input(
-                "Clave API de OpenAI", type="password", help="sk-..."
-            )
-            model = st.selectbox("Modelo", ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"])
-        elif provider == "anthropic":
-            api_key = st.text_input(
-                "Clave API de Anthropic", type="password", help="sk-ant-..."
+                "Clave API de OpenAI",
+                type="password",
+                help="sk-...",
+                key="api_key_openai",
             )
             model = st.selectbox(
-                "Modelo", ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229"]
+                "Modelo", ["gpt-4o", "gpt-4o-mini", "gpt-4-turbo"], key="model_openai"
+            )
+        elif provider == "anthropic":
+            api_key = st.text_input(
+                "Clave API de Anthropic",
+                type="password",
+                help="sk-ant-...",
+                key="api_key_anthro",
+            )
+            model = st.selectbox(
+                "Modelo",
+                ["claude-3-5-sonnet-20241022", "claude-3-opus-20240229"],
+                key="model_anthro",
             )
         elif provider == "google":
-            api_key = st.text_input("Clave API de Google", type="password")
-            model = st.selectbox("Modelo", ["gemini-1.5-pro", "gemini-1.5-flash"])
+            api_key = st.text_input(
+                "Clave API de Google", type="password", key="api_key_google"
+            )
+            model = st.selectbox(
+                "Modelo", ["gemini-1.5-pro", "gemini-1.5-flash"], key="model_google"
+            )
         else:
             base_url = st.text_input(
-                "URL Base de Ollama", value="http://localhost:11434"
+                "URL Base de Ollama", value="http://localhost:11434", key="ollama_url"
             )
-            model = st.selectbox("Modelo", ["llama2", "mistral", "codellama"])
+            model = st.selectbox(
+                "Modelo", ["llama2", "mistral", "codellama"], key="model_ollama"
+            )
 
         st.subheader("Acerca de")
-        st.markdown("""
+        st.markdown(f"""
         **Agente 11 - Generador de Boilerplate**
         
         Potenciado por LangChain y Streamlit.
         
-        Soporta 22+ frameworks:
-        - Web: Node.js, Python, Go, .NET, Rust, Scala
-        - Frontend: Next.js, React, Vue, Svelte
-        - Móvil: Flutter, React Native
-        - Blockchain: Solidity
-        - DevOps: Docker, Kubernetes, Ansible, Terraform
-        - Cloud: AWS CDK, Azure Bicep, GCP
-        - Base de Datos: PostgreSQL
+        Soporta **{len(frameworks_by_category) * 10}+ frameworks**:
         """)
+
+        for cat in categories:
+            count = len(frameworks_by_category.get(cat, {}))
+            st.markdown(f"- **{cat}**: {count} templates")
 
         st.subheader("Variables de Entorno")
         st.code(
@@ -325,7 +305,7 @@ DEFAULT_MODEL=gpt-4o-mini""",
         st.sidebar.markdown(f"**Framework:** {st.session_state.selected_framework}")
         st.sidebar.markdown(f"**Archivos:** {len(st.session_state.generated_files)}")
 
-        if st.sidebar.button("🗑️ Limpiar Todo"):
+        if st.sidebar.button("🗑️ Limpiar Todo", key="clear_btn"):
             st.session_state.generated_files = None
             st.session_state.project_name = ""
             st.session_state.selected_framework = ""

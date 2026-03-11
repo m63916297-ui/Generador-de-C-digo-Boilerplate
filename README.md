@@ -1,26 +1,37 @@
 # Agente 11 - Generador de Boilerplate
 
-Generador de código boilerplate potenciado por IA para 22+ frameworks.
+Generador de código boilerplate potenciado por IA para **72+ frameworks**.
 
 ## Características
 
-- **22+ Frameworks** - Genera código para Node.js, Python, Go, Rust, .NET y más
+- **72+ Frameworks** - Genera código para Node.js, Python, Go, Rust, .NET, Flutter, React Native, y más
 - **Listo para Producción** - Incluye tests, CI/CD, Docker y documentación
 - **Múltiples Proveedores LLM** - OpenAI, Anthropic, Google AI, Ollama
 - **Interfaz Streamlit** - Interfaz fácil de usar con vista previa y descarga
 - **Exportación ZIP** - Descarga el proyecto completo como archivo ZIP
 
-## Frameworks Soportados
+## Frameworks Soportados (72)
 
-| Categoría | Frameworks |
-|-----------|------------|
-| Backend Web | Node.js, Python (FastAPI), Go, .NET, Rust, Scala |
-| Frontend Web | Next.js, React, Vue.js, Svelte |
-| Móvil | Flutter, React Native |
-| Blockchain | Solidity |
-| DevOps | Docker, Kubernetes, Ansible, Terraform |
-| Cloud | AWS CDK, Azure Bicep, GCP |
-| Base de Datos | PostgreSQL |
+### Backend Web (23)
+Node.js Express, Node.js Fastify, NestJS, Python FastAPI, Python Flask, Python Django, Python Aiohttp, Go Gin, Go Fiber, Go Standard, .NET 8, Rust Actix, Rust Axum, Rust Warp, Scala Akka, Scala Play, Java Spring, Kotlin Spring, PHP Laravel, PHP Symfony, Ruby on Rails, Ruby Sinatra
+
+### Frontend Web (12)
+Next.js 14 (App/Pages), React CRA, React Vite, Vue.js 3, Nuxt.js, Svelte Vite, SvelteKit, Angular, SolidJS, Alpine.js, HTMX
+
+### Móvil (8)
+Flutter, React Native, Expo, Ionic, Capacitor, Kotlin Android, Swift iOS, Tauri
+
+### Blockchain (5)
+Solidity Hardhat, Solidity Truffle, Rust Substrate, Solana Rust, NEAR Rust
+
+### DevOps (11)
+Docker, Docker Compose, Kubernetes, Helm, Ansible, Terraform, Packer, Jenkins, GitHub Actions, GitLab CI, ArgoCD
+
+### Cloud (8)
+AWS CDK (TS/Python), AWS SAM, Azure Bicep, Azure ARM, GCP Terraform, GCP Functions, DigitalOcean
+
+### Base de Datos (5)
+PostgreSQL, MongoDB, Redis, MySQL, DynamoDB
 
 ## Inicio Rápido
 
@@ -62,7 +73,7 @@ agente-11/
 ├── app.py                      # Interfaz Streamlit
 ├── requirements.txt            # Dependencias
 ├── .env.example               # Plantilla de entorno
-├── SKILLS.md                  # Capacidades del agente
+├── SKILLS.md                  # Capacidades del agente (72 frameworks)
 ├── RULES.md                   # Reglas de generación
 ├── WORKFLOWS.md               # Flujos de usuario
 ├── STREAMLIT_CLOUD.md        # Guía de despliegue
@@ -70,12 +81,13 @@ agente-11/
 └── src/
     ├── agent/
     │   ├── generator.py       # Generador de boilerplate
-    │   ├── prompts.py         # Prompts del agente
-    │   └── tools.py           # Herramientas LangChain
+    │   ├── prompts.py        # Prompts del agente
+    │   └── tools.py          # Herramientas LangChain
     ├── templates/
-    │   └── frameworks/        # Plantillas de frameworks
+    │   ├── registry.py       # Registro de 72 frameworks
+    │   └── frameworks/       # Plantillas de frameworks
     └── config/
-        └── settings.py         # Configuración
+        └── settings.py        # Configuración
 ```
 
 ## Configuración
