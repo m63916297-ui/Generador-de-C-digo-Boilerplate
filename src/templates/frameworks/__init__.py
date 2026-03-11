@@ -1973,3 +1973,1192 @@ sbt run
 ```
 """,
     }
+
+
+def generate_mongodb_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        "docker-compose.yml": f"""version: "3.8"
+
+services:
+  mongodb:
+    image: mongo:7
+    container_name: {project_name}
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: root
+      MONGO_INITDB_ROOT_PASSWORD: password
+    volumes:
+      - mongodb_data:/data/db
+      - ./init.js:/docker-entrypoint-initdb.d/init.js:ro
+
+volumes:
+  mongodb_data:
+""",
+        "init.js": """db.createUser({
+  user: "admin",
+  pwd: "password",
+  roles: [{ role: "readWrite", db: "app_db" }]
+});
+
+db.createCollection("examples");
+""",
+        ".env.example": """MONGO_HOST=localhost
+MONGO_PORT=27017
+MONGO_DB=app_db
+MONGO_USER=admin
+MONGO_PASSWORD=password
+""",
+        "README.md": f"""# {project_name}
+
+MongoDB setup generated with Boilerplate Agent.
+
+## Getting Started
+
+```bash
+docker-compose up -d
+```
+""",
+    }
+
+
+def generate_redis_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "docker-compose.yml": f"""version: "3.8"
+
+services:
+  redis:
+    image: redis:7-alpine
+    container_name: {project_name}
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+
+volumes:
+  redis_data:
+""",
+        ".env.example": """REDIS_HOST=localhost
+REDIS_PORT=6379
+""",
+        "README.md": f"""# {project_name}
+
+Redis setup generated with Boilerplate Agent.
+
+## Getting Started
+
+```bash
+docker-compose up -d
+```
+""",
+    }
+
+
+def generate_mysql_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "docker-compose.yml": f"""version: "3.8"
+
+services:
+  mysql:
+    image: mysql:8
+    container_name: {project_name}
+    ports:
+      - "3306:3306"
+    environment:
+      MYSQL_ROOT_PASSWORD: rootpassword
+      MYSQL_DATABASE: app_db
+      MYSQL_USER: appuser
+      MYSQL_PASSWORD: apppassword
+    volumes:
+      - mysql_data:/var/lib/mysql
+
+volumes:
+  mysql_data:
+""",
+        "init.sql": """CREATE TABLE IF NOT EXISTS examples (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    name VARCHAR(255) NOT NULL,
+    description TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT INTO examples (name, description) VALUES 
+    ('Example 1', 'Sample description 1'),
+    ('Example 2', 'Sample description 2');
+""",
+        ".env.example": """MYSQL_HOST=localhost
+MYSQL_PORT=3306
+MYSQL_DB=app_db
+MYSQL_USER=appuser
+MYSQL_PASSWORD=apppassword
+""",
+        "README.md": f"""# {project_name}
+
+MySQL setup generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_k8s_helm(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "Chart.yaml": f"""apiVersion: v2
+name: {project_name}
+description: A Helm chart for {project_name}
+type: application
+version: 0.1.0
+appVersion: "1.0"
+""",
+        "values.yaml": """replicaCount: 1
+
+image:
+  repository: nginx
+  pullPolicy: IfNotPresent
+  tag: "latest"
+
+service:
+  type: LoadBalancer
+  port: 80
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+
+resources:
+  limits:
+    cpu: 100m
+    memory: 128Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+""",
+        "templates/deployment.yaml": """apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: {{ .Chart.Name }}
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: {{ .Chart.Name }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+    spec:
+      containers:
+        - name: {{ .Chart.Name }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          ports:
+            - name: http
+              containerPort: 80
+              protocol: TCP
+""",
+        "templates/service.yaml": """apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Release.Name }}
+spec:
+  type: {{ .Values.service.type }}
+  selector:
+    app.kubernetes.io/name: {{ .Chart.Name }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+""",
+        "README.md": f"""# {project_name}
+
+Helm chart generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_k8s_argo(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "application.yaml": f"""apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: {project_name}
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/example/repo.git
+    targetRevision: HEAD
+    path: .
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: {project_name}
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+""",
+        "README.md": f"""# {project_name}
+
+ArgoCD application generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_github_actions_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        ".github/workflows/main.yml": f"""name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Build
+        run: echo "Building..."
+      
+      - name: Test
+        run: echo "Testing..."
+""",
+        "README.md": f"""# {project_name}
+
+GitHub Actions workflow generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_gitlab_ci_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        ".gitlab-ci.yml": f"""stages:
+  - build
+  - test
+  - deploy
+
+build:
+  stage: build
+  script:
+    - echo "Building..."
+
+test:
+  stage: test
+  script:
+    - echo "Testing..."
+
+deploy:
+  stage: deploy
+  script:
+    - echo "Deploying..."
+  only:
+    - main
+""",
+        "README.md": f"""# {project_name}
+
+GitLab CI pipeline generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_jenkins_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        "Jenkinsfile": f"""pipeline {{
+    agent any
+    
+    stages {{
+        stage('Build') {{
+            steps {{
+                echo 'Building...'
+            }}
+        }}
+        
+        stage('Test') {{
+            steps {{
+                echo 'Testing...'
+            }}
+        }}
+        
+        stage('Deploy') {{
+            steps {{
+                echo 'Deploying...'
+            }}
+        }}
+    }}
+}}
+""",
+        "README.md": f"""# {project_name}
+
+Jenkins pipeline generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_ml_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "requirements.txt": """numpy==1.26.0
+pandas==2.2.0
+scikit-learn==1.4.0
+mlflow==2.12.0
+""",
+        "src/train.py": """import mlflow
+import pandas as pd
+from sklearn.model_selection import train_test_split
+from sklearn.ensemble import RandomForestClassifier
+
+def train():
+    mlflow.start_run()
+    
+    data = pd.read_csv("data.csv")
+    X = data.drop("target", axis=1)
+    y = data["target"]
+    
+    X_train, X_test, y_train, y_test = train_test_split(X, y)
+    
+    model = RandomForestClassifier()
+    model.fit(X_train, y_train)
+    
+    mlflow.sklearn.log_model(model, "model")
+    mlflow.log_metric("accuracy", model.score(X_test, y_test))
+    
+    mlflow.end_run()
+
+if __name__ == "__main__":
+    train()
+""",
+        "README.md": f"""# {project_name}
+
+ML project generated with Boilerplate Agent.
+
+## Getting Started
+
+```bash
+pip install -r requirements.txt
+python src/train.py
+```
+""",
+    }
+
+
+def generate_kafka_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "docker-compose.yml": """version: "3.8"
+
+services:
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://localhost:9092
+""",
+        "producer.py": """from kafka import KafkaProducer
+import json
+
+producer = KafkaProducer(
+    bootstrap_servers=["localhost:9092"],
+    value_serializer=lambda v: json.dumps(v).encode("utf-8")
+)
+
+producer.send("topic", {"key": "value"})
+producer.flush()
+""",
+        "consumer.py": """from kafka import KafkaConsumer
+import json
+
+consumer = KafkaConsumer(
+    "topic",
+    bootstrap_servers=["localhost:9092"],
+    value_deserializer=lambda m: json.loads(m.decode("utf-8"))
+)
+
+for message in consumer:
+    print(message.value)
+""",
+        "README.md": f"""# {project_name}
+
+Kafka setup generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_nats_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "docker-compose.yml": """version: "3.8"
+
+services:
+  nats:
+    image: nats:2.10
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+""",
+        "publisher.py": """import nats
+
+async def publish():
+    nc = await nats.connect()
+    await nc.publish("subject", b"Hello NATS")
+    await nc.close()
+
+import asyncio
+asyncio.run(publish())
+""",
+        "subscriber.py": """import nats
+
+async def subscribe():
+    nc = await nats.connect()
+    sub = await nc.subscribe("subject")
+    async for msg in sub.messages:
+        print(msg.data)
+    await nc.close()
+
+import asyncio
+asyncio.run(subscribe())
+""",
+        "README.md": f"""# {project_name}
+
+NATS setup generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_envoy_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "envoy.yaml": """static_resources:
+  listeners:
+    - name: listener_0
+      address:
+        socket_address:
+          address: 0.0.0.0
+          port_value: 80
+      filter_chains:
+        - filters:
+            - name: envoy.filters.network.http_connection_manager
+              typed_config:
+                "@type": type.googleapis.com/envoy.extensions.filters.network.http_connection_manager.v3.HttpConnectionManager
+                stat_prefix: ingress_http
+                route_config:
+                  name: local_route
+                  virtual_hosts:
+                    - name: local_service
+                      domains: ["*"]
+                      routes:
+                        - match:
+                            prefix: "/"
+                          route:
+                            cluster: service
+
+  clusters:
+    - name: service
+      connect_timeout: 0.25s
+      type: STATIC
+      lb_policy: ROUND_ROBIN
+      load_assignment:
+        cluster_name: service
+        endpoints:
+          - lb_endpoints:
+              - endpoint:
+                  address:
+                    socket_address:
+                      address: 127.0.0.1
+                      port_value: 8080
+""",
+        "Dockerfile": """FROM envoyproxy/envoy:v1.30.0
+COPY envoy.yaml /etc/envoy/envoy.yaml
+CMD ["envoy", "-c", "/etc/envoy/envoy.yaml"]
+""",
+        "README.md": f"""# {project_name}
+
+Envoy proxy configuration generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_istio_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "virtual-service.yaml": """apiVersion: networking.istio.io/v1beta1
+kind: VirtualService
+metadata:
+  name: {project_name}
+spec:
+  hosts:
+    - {project_name}
+  http:
+    - route:
+        - destination:
+            host: {project_name}
+            port:
+              number: 80
+""",
+        "destination-rule.yaml": """apiVersion: networking.istio.io/v1beta1
+kind: DestinationRule
+metadata:
+  name: {project_name}
+spec:
+  host: {project_name}
+  trafficPolicy:
+    connectionPool:
+      tcp:
+        maxConnections: 100
+      http:
+        h2UpgradePolicy: UPGRADE
+        http2MaxRequests: 1000
+""",
+        "README.md": f"""# {project_name}
+
+Istio service mesh configuration generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_crossplane_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        "provider.yaml": """apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-aws
+spec:
+  package: xpkg.upbound.io/upbound/provider-aws:v0.47.0
+""",
+        "composition.yaml": """apiVersion: apiextensions.crossplane.io/v1
+kind: Composition
+metadata:
+  name: {project_name}
+spec:
+  resources: []
+""",
+        "README.md": f"""# {project_name}
+
+Crossplane configuration generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_vault_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "docker-compose.yml": """version: "3.8"
+
+services:
+  vault:
+    image: vault:1.15
+    ports:
+      - "8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: root
+    cap_add:
+      - IPC_LOCK
+""",
+        "policy.hcl": """path "secret/data/*" {
+  capabilities = ["create", "read", "update", "delete"]
+}
+""",
+        "README.md": f"""# {project_name}
+
+HashiCorp Vault setup generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_terragrunt_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        "terragrunt.hcl": """terraform {
+  source = "..//modules/example"
+}
+
+inputs = {
+  name = "{project_name}"
+}
+""",
+        "modules/example/main.tf": """variable "name" {
+  description = "Name for resources"
+  type        = string
+}
+
+resource "aws_s3_bucket" "example" {
+  bucket = var.name
+}
+""",
+        "README.md": f"""# {project_name}
+
+Terragrunt configuration generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_packer_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "example.packer.hcl": f"""source "amazon-ebs" "example" {{
+  ami_name      = "{project_name}"
+  instance_type = "t2.micro"
+  region        = "us-east-1"
+
+  source_ami    = "ami-0c55b159cbfafe1f0"
+  ssh_username  = "ubuntu"
+}}
+
+build {{
+  sources = ["source.amazon-ebs.example"]
+
+  provisioner "shell" {{
+    inline = ["echo Hello from Packer"]
+  }}
+}}
+""",
+        "README.md": f"""# {project_name}
+
+Packer template generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_kustomize_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        "kustomization.yaml": f"""apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - deployment.yaml
+  - service.yaml
+""",
+        "deployment.yaml": f"""apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {project_name}
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: {project_name}
+  template:
+    metadata:
+      labels:
+        app: {project_name}
+    spec:
+      containers:
+        - name: app
+          image: nginx:latest
+""",
+        "service.yaml": f"""apiVersion: v1
+kind: Service
+metadata:
+  name: {project_name}
+spec:
+  selector:
+    app: {project_name}
+  ports:
+    - port: 80
+      targetPort: 80
+""",
+        "overlays/production/kustomization.yaml": """apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+bases:
+  - ../../base
+
+replicas:
+  - name: app
+    count: 5
+""",
+        "README.md": f"""# {project_name}
+
+Kustomize configuration generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_terraform_module(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        "main.tf": f"""variable "name" {{
+  description = "Name for {project_name}"
+  type        = string
+}}
+
+resource "aws_s3_bucket" "app" {{
+  bucket = var.name
+}}
+""",
+        "variables.tf": """variable "tags" {
+  description = "Tags to apply"
+  type        = map(string)
+  default     = {}
+}
+""",
+        "outputs.tf": """output "bucket_name" {
+  description = "S3 Bucket name"
+  value       = aws_s3_bucket.app.id
+}
+""",
+        "README.md": f"""# {project_name}
+
+Terraform module generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_java_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "pom.xml": f"""<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+    <groupId>com.example</groupId>
+    <artifactId>{project_name}</artifactId>
+    <version>1.0.0</version>
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>3.2.0</version>
+    </parent>
+</project>
+""",
+        "src/main/java/com/example/App.java": """package com.example;
+
+import org.springframework.boot.SpringApplication;
+import org.springframework.boot.autoconfigure.SpringBootApplication;
+
+@SpringBootApplication
+public class App {
+    public static void main(String[] args) {
+        SpringApplication.run(App.class, args);
+    }
+}
+""",
+        "src/main/resources/application.properties": """server.port=8080
+""",
+        "README.md": f"""# {project_name}
+
+Java Spring Boot project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_kotlin_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "build.gradle.kts": f"""plugins {{
+    id("org.springframework.boot") version "3.2.0"
+    id("org.jetbrains.kotlin.jvm") version "1.9.21"
+}}
+
+group = "com.example"
+version = "1.0.0"
+
+repositories {{
+    mavenCentral()
+}}
+
+dependencies {{
+    implementation("org.springframework.boot:spring-boot-starter-web")
+}}
+""",
+        "src/main/kotlin/com/example/Application.kt": """package com.example
+
+import org.springframework.boot.SpringApplication
+import org.springframework.boot.autoconfigure.SpringBootApplication
+
+@SpringBootApplication
+class Application
+
+fun main(args: Array<String>) {{
+    SpringApplication.run(Application::class.java, *args)
+}}
+""",
+        "src/main/resources/application.properties": """server.port=8080
+""",
+        "README.md": f"""# {project_name}
+
+Kotlin Spring Boot project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_php_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "composer.json": f"""{{
+    "name": "app/{project_name}",
+    "require": {{
+        "php": "^8.1"
+    }},
+    "autoload": {{
+        "psr-4": {{
+            "App\\\\": "src/"
+        }}
+    }}
+}}
+""",
+        "public/index.php": """<?php
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+$app = new Slim\\App();
+
+$app->get('/', function ($request, $response) {{
+    $response->getBody()->write('Hello World');
+    return $response;
+}});
+
+$app->run();
+""",
+        "README.md": f"""# {project_name}
+
+PHP project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_ruby_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "Gemfile": f"""source 'https://rubygems.org'
+
+gem 'sinatra'
+gem 'puma'
+""",
+        "app.rb": f"""require 'sinatra'
+
+get '/' do
+  'Hello World!'
+end
+""",
+        "config.ru": f"""require './app'
+run Sinatra::Application
+""",
+        "README.md": f"""# {project_name}
+
+Ruby Sinatra project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_angular_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        "angular.json": f"""{{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {{
+    "{project_name}": {{
+      "projectType": "application",
+      "root": "",
+      "sourceRoot": "src",
+      "prefix": "app"
+    }}
+  }}
+}}
+""",
+        "src/main.ts": """import { bootstrapApplication } from '@angular/platform-browser';
+import { AppComponent } from './app/app.component';
+
+bootstrapApplication(AppComponent, {
+  providers: []
+});
+""",
+        "src/app/app.component.ts": """import { Component } from '@angular/core';
+
+@Component({{
+  selector: 'app-root',
+  template: `<h1>Hello World</h1>`
+}})
+export class AppComponent {{}}
+""",
+        "package.json": """{{
+  "name": "angular-app",
+  "scripts": {{
+    "start": "ng serve"
+  }}
+}}
+""",
+        "README.md": f"""# {project_name}
+
+Angular project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_alpine_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "index.html": """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Alpine.js App</title>
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+</head>
+<body x-data="{{ message: 'Hello World' }}">
+    <h1 x-text="message"></h1>
+</body>
+</html>
+""",
+        "README.md": f"""# {project_name}
+
+Alpine.js project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_htmx_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "index.html": """<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HTMX App</title>
+    <script src="https://unpkg.com/htmx.org@1.9.10"></script>
+</head>
+<body>
+    <button hx-get="/hello" hx-swap="outerHTML">Click Me</button>
+</body>
+</html>
+""",
+        "server.py": """from http.server import HTTPServer, BaseHTTPRequestHandler
+
+class Handler(BaseHTTPRequestHandler):
+    def do_GET(self):
+        self.send_response(200)
+        self.send_header('Content-Type', 'text/html')
+        self.end_headers()
+        self.wfile.write(b'<span>Hello World</span>')
+
+HTTPServer(('localhost', 8000), Handler).serve_forever()
+""",
+        "README.md": f"""# {project_name}
+
+HTMX project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_ionic_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "package.json": f"""{{
+  "name": "{project_name}",
+  "version": "1.0.0",
+  "dependencies": {{
+    "@ionic/react": "^7.0.0"
+  }}
+}}
+""",
+        "src/App.tsx": """import {{ IonApp, IonContent, IonHeader, IonTitle, IonToolbar }} from '@ionic/react';
+
+function App() {{
+  return (
+    <IonApp>
+      <IonHeader>
+        <IonToolbar>
+          <IonTitle>Hello</IonTitle>
+        </IonToolbar>
+      </IonHeader>
+      <IonContent>
+        <h1>Hello World</h1>
+      </IonContent>
+    </IonApp>
+  );
+}}
+
+export default App;
+""",
+        "README.md": f"""# {project_name}
+
+Ionic project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_capacitor_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        "capacitor.config.ts": f"""import {{ CapacitorConfig }} from '@capacitor/cli';
+
+const config: CapacitorConfig = {{
+  appId: 'com.example.{project_name}',
+  appName: '{project_name}',
+  webDir: 'dist',
+  server: {{
+    androidScheme: 'https'
+  }}
+}};
+
+export default config;
+""",
+        "index.html": """<!DOCTYPE html>
+<html>
+<body>
+    <h1>Hello World</h1>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
+""",
+        "src/main.ts": """import {{ Capacitor }} from '@capacitor/core';
+console.log(Capacitor.isNativePlatform());
+""",
+        "README.md": f"""# {project_name}
+
+Capacitor project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_elixir_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "mix.exs": f"""defmodule {project_name.replace("-", "_")}.MixProject do
+  use Mix.Project
+
+  def project do
+    [
+      app: :{project_name},
+      version: "0.1.0",
+      elixir: "~> 1.14"
+    ]
+  end
+end
+""",
+        "lib/app.ex": """defmodule App do
+  def hello do
+    :world
+  end
+end
+""",
+        "README.md": f"""# {project_name}
+
+Elixir project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_haskell_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        "package.yaml": f"""name: {project_name}
+version: 0.1.0.0
+
+executable:
+  main: Main.hs
+  ghc-options:
+    - -main-is
+""",
+        "app/Main.hs": """main :: IO ()
+main = putStrLn "Hello World"
+""",
+        "README.md": f"""# {project_name}
+
+Haskell project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_nim_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        f"{project_name}.nim": f"""# {project_name}
+
+when isMainModule:
+    echo "Hello World"
+""",
+        "README.md": f"""# {project_name}
+
+Nim project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_dart_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "pubspec.yaml": f"""name: {project_name}
+version: 1.0.0
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+""",
+        "bin/main.dart": """void main() {
+  print('Hello World');
+}
+""",
+        "README.md": f"""# {project_name}
+
+Dart project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_cpp_template(project_name: str, options: Dict = None) -> Dict[str, str]:
+    return {
+        "main.cpp": f"""#include <iostream>
+
+int main() {{
+    std::cout << "Hello World from {project_name}" << std::endl;
+    return 0;
+}}
+""",
+        "CMakeLists.txt": f"""cmake_minimum_required(VERSION 3.10)
+project({project_name})
+
+add_executable({project_name} main.cpp)
+""",
+        "README.md": f"""# {project_name}
+
+C++ project generated with Boilerplate Agent.
+""",
+    }
+
+
+def generate_swift_ios_template(
+    project_name: str, options: Dict = None
+) -> Dict[str, str]:
+    return {
+        "Package.swift": f"""// swift-tools-version:5.9
+import PackageDescription
+
+let package = Package(
+    name: "{project_name}",
+    platforms: [.iOS(.v16)],
+    products: [.library(name: "{project_name}", targets: ["{project_name}"])],
+    targets: [.target(name: "{project_name}")]
+)
+""",
+        f"Sources/{project_name}/main.swift": f"""import Foundation
+
+print("Hello from {project_name}")
+""",
+        "README.md": f"""# {project_name}
+
+Swift iOS project generated with Boilerplate Agent.
+""",
+    }
